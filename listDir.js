@@ -1,4 +1,3 @@
-// 获得指定文件的列表数组
 const fs = require('fs');
 const path = require('path');
 
@@ -7,8 +6,9 @@ const matchs = {
   name: /config.js/,
   code: /EventsTimeDistribution/g,
 };
-const findFile = (base, r = []) => {
+const findFile = (base, matchs) => {
   // 层级遍历
+  let r = [];
   const baseFiles = fs.readdirSync(base);
   baseFiles.forEach((file) => {
     const fullpath = path.join(base, file);
@@ -16,7 +16,7 @@ const findFile = (base, r = []) => {
     const state = fs.lstatSync(fullpath);
     let tmp = [];
     if (state.isDirectory()) {
-      tmp = findFile(fullpath);
+      tmp = findFile(fullpath, matchs);
     } else if (state.isFile() && match(target, matchs)) {
       tmp = tmp.concat(fullpath);
     }
@@ -32,8 +32,9 @@ function match({ filepath }, { name, code }) {
   code.lastIndex = 0;
   return result;
 }
+
 const handle = () => {
-  const files = findFile(base);
+  const files = findFile(base, matchs);
   console.log(files);
 };
 handle();
