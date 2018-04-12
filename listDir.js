@@ -5,7 +5,7 @@ const path = require('path');
 const base = 'src/cards';
 const matchs = {
   name: /^((?!example).)*config.js((?!example).)*$/, //path
-  code: /.\/imports/g, //code包含
+  code: /^((?!cardParam).)*\/imports((?!cardParam).)*$/, //code包含
 };
 const deleteBase = 'src/entry';
 const findFile = (base, matchs) => {
@@ -31,7 +31,10 @@ function match({ filepath }, { name, code }) {
   name.lastIndex = 0;
   code.lastIndex = 0;
   // const filename = filepath.split(path.sep).pop();
-  const lines = fs.readFileSync(filepath, 'utf8');
+  const lines = fs
+    .readFileSync(filepath, 'utf8')
+    .split('\n')
+    .join('###');
   if (name && !name.exec(filepath)) {
     return false;
   }
@@ -39,6 +42,17 @@ function match({ filepath }, { name, code }) {
     return false;
   }
   return true;
+}
+function replace(path, targets, arrows) {
+  let lines = fs
+    .readFileSync(path, 'utf8')
+    .split('\n')
+    .join('###');
+  targets.forEach((target, idx) => {
+    lines = lines.replace(target, arrows[idx]);
+  });
+  const r = lines.split('###');
+  fs.writeFileSync(path, r.join('\n'));
 }
 function deleteFolder(path, boolean) {
   fs.removeSync(path);
@@ -63,4 +77,23 @@ const handle = () => {
     writeFile(`src/entry/${filename}.js`, content);
   });
 };
-handle();
+const handle2 = () => {
+  const files = findFile(base, matchs); //所有的configs
+  files.forEach((file) => {
+    console.log(file);
+    replace(
+      file,
+      [
+        /(const param .*?);/,
+        /noData:.*handler.*=>\s(.*)\(\)\.exec.*?},/,
+        /isNoData:.*?},/,
+      ],
+      [
+        "$1;###const cardParam = {###      type: ['investedProduct', 'name','kkkkkkk'],###      idSelector: 'accountId',###    };",
+        '      noData: (settings, options) => {###        const { params, canConfig } = settings;###        const { type } = params;###        const typeSame = (type && cardParam.type.includes(type)) || !type;###        if (!typeSame) {###          return <CardNoData typeError={!typeSame} />;###        }###        return (###          <CardNoData###            handler={() => $1().exec(settings, options)}###          />###        );###      },',
+        '      isNoData: (settings, options) => {###        const { params, canConfig } = settings;###        const { onToggleState } = options;###        const { type } = params;###        const typeSame = (type && cardParam.type.includes(type)) || !type;###        const withConfig =###          _.isEmpty(param) ||###          _.some(param.map(({ id }) => !_.isEmpty(params[id])), Boolean);###        return (canConfig && !withConfig) || (canConfig && !typeSame);###      },',
+      ]
+    );
+  });
+};
+handle2();
